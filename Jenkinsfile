@@ -10,10 +10,7 @@ pipeline {
                         script: 'git log -1 --pretty=%B',
                         returnStdout: true
                     ).trim()
-
                     def keys = (env.COMMIT_MSG =~ /SOFTCON-\d+/).collect { it }
-
-                    // Move To Do → In Progress
                     keys.each { key ->
                         try {
                             jiraExecuteWorkflow(
@@ -25,18 +22,96 @@ pipeline {
                         }
                         jiraComment(
                             issueKey: key,
-                            body: "Build #${env.BUILD_NUMBER} started — compiling iFoto backend.\n${env.BUILD_URL}"
+                            body: "Build #${env.BUILD_NUMBER} started.\n${env.BUILD_URL}"
                         )
                     }
                 }
-
                 sh './mvnw clean package -DskipTests -B'
             }
         }
 
         stage('Lint') {
             steps {
-                echo 'SOFTCON-3 Lint stage placeholder — Checkstyle coming in A5'
+                echo 'SOFTCON-3 Lint stage — Checkstyle coming in A5'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'SOFTCON-3 Test stage — unit tests coming in A5'
+            }
+        }
+
+        // ── A3: SonarQube analysis (also serves as B3 evidence) ──────────
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        ./mvnw sonar:sonar \
+                            -Dsonar.projectKey=ifoto-backend \
+                            -Dsonar.projectName="iFoto Backend" \
+                            -Dsonar.host.url=http://136.113.123.68:9000 \
+                            -B
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
+            }
+        }
+
+        // ── A3: JMeter integration ────────────────────────────────────────
+        stage('Performance Test') {
+            steps {
+                sh '''
+                    mkdir -p jmeter/results/html-report
+                    /opt/apache-jmeter/bin/jmeter -n \
+                        -t  jmeter/ifoto-performance-test.jmx \
+                        -l  jmeter/results/results.jtl \
+                        -e  -o jmeter/results/html-report \
+                        -j  jmeter/results/jmeter.log \
+                        -JBASE_HOST=136.113.123.68 \
+                        -JBASE_PORT=8082
+                '''
+            }
+            post {
+                always {
+                    publishHTML([
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'jmeter/results/html-report',
+                        reportFiles:           'index.html',
+                        reportName:            'JMeter Performance Report'
+                    ])
+                    archiveArtifacts artifacts: 'jmeter/results/**',
+                    allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ── A3: Docker plugin (dind) ──────────────────────────────────────
+        stage('Docker Build') {
+            steps {
+                script {
+                    def commitSha = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+                    sh """
+                        docker build \
+                            -t ifoto-backend:latest \
+                            -t ifoto-backend:${commitSha} \
+                            .
+                        echo "Docker image built: ifoto-backend:${commitSha}"
+                        docker images | grep ifoto-backend
+                    """
+                }
             }
         }
 
@@ -44,8 +119,6 @@ pipeline {
             steps {
                 script {
                     def keys = (env.COMMIT_MSG =~ /SOFTCON-\d+/).collect { it }
-
-                    // Move In Progress → In Review
                     keys.each { key ->
                         try {
                             jiraExecuteWorkflow(
@@ -57,11 +130,10 @@ pipeline {
                         }
                         jiraComment(
                             issueKey: key,
-                            body: "Build #${env.BUILD_NUMBER} passed — moved to In Review.\n${env.BUILD_URL}"
+                            body: "Build #${env.BUILD_NUMBER} — all stages passed, in review.\n${env.BUILD_URL}"
                         )
                     }
                 }
-                echo 'Code review checkpoint'
             }
         }
 
@@ -71,8 +143,6 @@ pipeline {
         success {
             script {
                 def keys = (env.COMMIT_MSG =~ /SOFTCON-\d+/).collect { it }
-
-                // Move In Review → Done
                 keys.each { key ->
                     try {
                         jiraExecuteWorkflow(
@@ -84,17 +154,14 @@ pipeline {
                     }
                     jiraComment(
                         issueKey: key,
-                        body: "Build #${env.BUILD_NUMBER} PASSED — issue closed and moved to Done.\n${env.BUILD_URL}"
+                        body: "Build #${env.BUILD_NUMBER} PASSED — closed.\n${env.BUILD_URL}"
                     )
                 }
             }
         }
-
         failure {
             script {
                 def keys = (env.COMMIT_MSG =~ /SOFTCON-\d+/).collect { it }
-
-                // Move back to To Do on failure
                 keys.each { key ->
                     try {
                         jiraExecuteWorkflow(
@@ -106,7 +173,7 @@ pipeline {
                     }
                     jiraComment(
                         issueKey: key,
-                        body: "Build #${env.BUILD_NUMBER} FAILED — issue moved back to To Do.\n${env.BUILD_URL}"
+                        body: "Build #${env.BUILD_NUMBER} FAILED.\n${env.BUILD_URL}"
                     )
                 }
             }
