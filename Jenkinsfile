@@ -9,10 +9,5 @@ pipeline {
             }
         }
     }
-
-    post {
-        always {
-            jiraSendBuildInfo site: 'https://soft-con.atlassian.net'
-        }
-    }
+    // remove the post block entirely
 }
