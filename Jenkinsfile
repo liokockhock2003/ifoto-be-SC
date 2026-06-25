@@ -6,7 +6,6 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-                    // Extract SOFTCON-N keys from the triggering commit
                     env.COMMIT_MSG = sh(
                         script: 'git log -1 --pretty=%B',
                         returnStdout: true
@@ -14,19 +13,17 @@ pipeline {
 
                     def keys = (env.COMMIT_MSG =~ /SOFTCON-\d+/).collect { it }
 
-                    // To Do → In Progress (transition id: 21)
+                    // Move To Do → In Progress
                     keys.each { key ->
                         try {
                             jiraExecuteWorkflow(
-                                site: 'https://soft-con.atlassian.net',
-                                idOrKey: key,
-                                workflowName: 'In Progress'
+                                jqlSearch: "issueKey = ${key}",
+                                workflowActionName: 'In Progress'
                             )
                         } catch (err) {
                             echo "Transition skipped for ${key}: ${err.message}"
                         }
                         jiraComment(
-                            site: 'https://soft-con.atlassian.net',
                             issueKey: key,
                             body: "Build #${env.BUILD_NUMBER} started — compiling iFoto backend.\n${env.BUILD_URL}"
                         )
@@ -48,21 +45,19 @@ pipeline {
                 script {
                     def keys = (env.COMMIT_MSG =~ /SOFTCON-\d+/).collect { it }
 
-                    // In Progress → In Review (transition id: 31)
+                    // Move In Progress → In Review
                     keys.each { key ->
                         try {
                             jiraExecuteWorkflow(
-                                site: 'https://soft-con.atlassian.net',
-                                idOrKey: key,
-                                workflowName: 'In Review'
+                                jqlSearch: "issueKey = ${key}",
+                                workflowActionName: 'In Review'
                             )
                         } catch (err) {
                             echo "Transition skipped for ${key}: ${err.message}"
                         }
                         jiraComment(
-                            site: 'https://soft-con.atlassian.net',
                             issueKey: key,
-                            body: "Build #${env.BUILD_NUMBER} passed build stage — moved to In Review.\n${env.BUILD_URL}"
+                            body: "Build #${env.BUILD_NUMBER} passed — moved to In Review.\n${env.BUILD_URL}"
                         )
                     }
                 }
@@ -77,19 +72,17 @@ pipeline {
             script {
                 def keys = (env.COMMIT_MSG =~ /SOFTCON-\d+/).collect { it }
 
-                // In Review → Done (transition id: 41)
+                // Move In Review → Done
                 keys.each { key ->
                     try {
                         jiraExecuteWorkflow(
-                            site: 'https://soft-con.atlassian.net',
-                            idOrKey: key,
-                            workflowName: 'Done'
+                            jqlSearch: "issueKey = ${key}",
+                            workflowActionName: 'Done'
                         )
                     } catch (err) {
                         echo "Transition skipped for ${key}: ${err.message}"
                     }
                     jiraComment(
-                        site: 'https://soft-con.atlassian.net',
                         issueKey: key,
                         body: "Build #${env.BUILD_NUMBER} PASSED — issue closed and moved to Done.\n${env.BUILD_URL}"
                     )
@@ -101,19 +94,17 @@ pipeline {
             script {
                 def keys = (env.COMMIT_MSG =~ /SOFTCON-\d+/).collect { it }
 
-                // On failure — move back to To Do (transition id: 11) + comment
+                // Move back to To Do on failure
                 keys.each { key ->
                     try {
                         jiraExecuteWorkflow(
-                            site: 'https://soft-con.atlassian.net',
-                            idOrKey: key,
-                            workflowName: 'To Do'
+                            jqlSearch: "issueKey = ${key}",
+                            workflowActionName: 'To Do'
                         )
                     } catch (err) {
                         echo "Transition skipped for ${key}: ${err.message}"
                     }
                     jiraComment(
-                        site: 'https://soft-con.atlassian.net',
                         issueKey: key,
                         body: "Build #${env.BUILD_NUMBER} FAILED — issue moved back to To Do.\n${env.BUILD_URL}"
                     )
