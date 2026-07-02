@@ -180,7 +180,7 @@ pipeline {
                         -l  jmeter/results/results.jtl \
                         -e  -o jmeter/results/html-report \
                         -j  jmeter/results/jmeter.log \
-                        -JBASE_HOST=136.113.123.68 \
+                        -JBASE_HOST=localhost \
                         -JBASE_PORT=8082
                 '''
             }
@@ -195,7 +195,7 @@ pipeline {
                         reportName:            'JMeter Performance Report'
                     ])
                     archiveArtifacts artifacts: 'jmeter/results/**',
-                    allowEmptyArchive: true
+                                      allowEmptyArchive: true
                 }
             }
         }
