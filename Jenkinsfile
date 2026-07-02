@@ -113,6 +113,7 @@ pipeline {
         stage('Performance Test') {
             steps {
                 sh '''
+                    rm -rf jmeter/results
                     mkdir -p jmeter/results/html-report
                     /opt/apache-jmeter/bin/jmeter -n \
                         -t  jmeter/ifoto-performance-test.jmx \
