@@ -121,7 +121,9 @@ public class EventService {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private List<User> resolveUsers(List<Long> userIds) {
-        if (userIds == null || userIds.isEmpty()) return new ArrayList<>();
+        if (userIds == null || userIds.isEmpty()) {
+            return new ArrayList<>();
+        }
         return userIds.stream()
                 .map(userService::getUserById)
                 .collect(Collectors.toCollection(ArrayList::new));

@@ -16,7 +16,9 @@ public class StringListConverter implements AttributeConverter<List<String>, Str
 
     @Override
     public String convertToDatabaseColumn(List<String> attribute) {
-        if (attribute == null || attribute.isEmpty()) return null;
+        if (attribute == null || attribute.isEmpty()) {
+            return null;
+        }
         try {
             return MAPPER.writeValueAsString(attribute);
         } catch (JsonProcessingException e) {
@@ -26,7 +28,9 @@ public class StringListConverter implements AttributeConverter<List<String>, Str
 
     @Override
     public List<String> convertToEntityAttribute(String dbData) {
-        if (dbData == null || dbData.isBlank()) return new ArrayList<>();
+        if (dbData == null || dbData.isBlank()) {
+            return new ArrayList<>();
+        }
         try {
             return MAPPER.readValue(dbData, new TypeReference<List<String>>() {});
         } catch (JsonProcessingException e) {

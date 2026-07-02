@@ -114,7 +114,9 @@ public class EquipmentService {
         SubEquipment entity = subEquipmentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Sub equipment not found with id: " + id));
-        if (req.type() != null) entity.setType(req.type());
+        if (req.type() != null) {
+            entity.setType(req.type());
+        }
         entity.setEquipmentType(req.equipmentType());
         entity.setCameraModel(req.cameraModel());
         entity.setBrand(req.brand());
@@ -204,7 +206,9 @@ public class EquipmentService {
     }
 
     private RentalCategory resolvePricingCategory(Long pricingCategoryId) {
-        if (pricingCategoryId == null) return null;
+        if (pricingCategoryId == null) {
+            return null;
+        }
         return rentalCategoryRepository.findById(pricingCategoryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Pricing category not found with id: " + pricingCategoryId));

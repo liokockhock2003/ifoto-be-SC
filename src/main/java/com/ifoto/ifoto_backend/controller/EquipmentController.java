@@ -47,8 +47,12 @@ public class EquipmentController {
         Set<String> roles = auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
-        if (roles.contains("ROLE_NON_STUDENT")) return MemberType.NON_STUDENT;
-        if (roles.contains("ROLE_STUDENT"))     return MemberType.STUDENT;
+        if (roles.contains("ROLE_NON_STUDENT")) {
+            return MemberType.NON_STUDENT;
+        }
+        if (roles.contains("ROLE_STUDENT")) {
+            return MemberType.STUDENT;
+        }
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No membership role assigned");
     }
 

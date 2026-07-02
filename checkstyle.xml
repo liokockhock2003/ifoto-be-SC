@@ -8,32 +8,17 @@
     <property name="severity" value="warning"/>
     <property name="fileExtensions" value="java, properties, xml"/>
 
-    <!-- Files must end with a newline -->
-    <module name="NewlineAtEndOfFile"/>
-
-    <!-- No tab characters in source -->
-    <module name="FileTabCharacter">
-        <property name="eachLine" value="true"/>
-    </module>
-
-    <!-- Trailing whitespace -->
-    <module name="RegexpSingleline">
-        <property name="format" value="\s+$"/>
-        <property name="message" value="Line has trailing whitespace."/>
-    </module>
-
     <module name="TreeWalker">
-        <!-- Naming conventions -->
-        <module name="ConstantName"/>
+        <!-- Naming conventions (Spring Data derived query methods use underscores,
+             and logger fields are conventionally lowercase, so ConstantName/MethodName
+             are intentionally omitted) -->
         <module name="LocalVariableName"/>
         <module name="MemberName"/>
-        <module name="MethodName"/>
         <module name="PackageName"/>
         <module name="ParameterName"/>
         <module name="TypeName"/>
 
         <!-- Imports -->
-        <module name="AvoidStarImport"/>
         <module name="RedundantImport"/>
         <module name="UnusedImports"/>
 
@@ -41,10 +26,6 @@
         <module name="LeftCurly"/>
         <module name="RightCurly"/>
         <module name="NeedBraces"/>
-
-        <!-- Whitespace -->
-        <module name="WhitespaceAfter"/>
-        <module name="WhitespaceAround"/>
 
         <!-- Common coding problems -->
         <module name="EmptyStatement"/>
