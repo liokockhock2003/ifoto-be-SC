@@ -144,6 +144,40 @@ Migrations live in `src/main/resources/db/migration/` using the `V{n}__descripti
 
 | Profile | Notes |
 |---|---|
-| `dev` (default) | Verbose SQL logging; CORS allows `localhost:5173` and `localhost:3000`. |
+| `dev` (default) | Verbose SQL logging; CORS allows `localhost:5173` and `localhost:3000`. Also used by CI (GitHub Actions, Jenkins) to run tests against a disposable MySQL container. |
 | `prod` | Configured via `application-prod.properties`; DB and CORS from env vars. |
-| `test` | Uses `application-test.properties`. |
+
+## Running the pulled Docker image standalone (Task A8)
+
+Teammates who only have the published image (not the source) can run it against a containerized MySQL — no local MySQL install required.
+
+```bash
+# 1. Pull the image
+docker pull liokockhock2003/ifoto-backend-sc:latest
+
+# 2. Create a shared network so the containers can resolve each other by name
+docker network create ifoto-net
+
+# 3. Run MySQL with a named volume (data persists across restarts)
+docker run -d --name ifoto-mysql --network ifoto-net \
+  -e MYSQL_DATABASE=ifotodb_dev \
+  -e MYSQL_USER=ifoto_user \
+  -e MYSQL_PASSWORD=your_password \
+  -e MYSQL_ROOT_PASSWORD=root_password \
+  -v ifoto-mysql-data:/var/lib/mysql \
+  mysql:8.0
+
+# 4. Run the backend on the same network, pointed at the MySQL container by name
+docker run -d --name ifoto-backend-sc --network ifoto-net -p 8080:8080 \
+  -e SPRING_PROFILES_ACTIVE=dev \
+  -e DEV_DB_URL="jdbc:mysql://ifoto-mysql:3306/ifotodb_dev?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kuala_Lumpur" \
+  -e DEV_DB_USER=ifoto_user \
+  -e DEV_DB_PASS=your_password \
+  -e JWT_SECRET=a-secret-key-at-least-32-characters-long \
+  -e JWT_EXPIRATION_MS=900000 \
+  liokockhock2003/ifoto-backend-sc:latest
+```
+
+Then verify at `http://localhost:8080/swagger-ui.html` (or via Postman).
+
+> The image itself contains no secrets or environment-specific config — everything is supplied at `docker run` time via `-e` flags (or `--env-file .env`, kept local and never committed). MySQL runs in its own container rather than on the host, since a container's `localhost` isn't the host machine's `localhost` — running MySQL in a container on the same Docker network avoids that platform-dependent networking entirely.

@@ -61,6 +61,5 @@ The dev profile reads these from the environment (no `.env` file checked in):
 Flyway migrations live in `src/main/resources/db/migration/` using the `V{n}__description.sql` naming convention. Never modify existing migration files — always add a new version.
 
 ### Profiles
-- `dev` (default) — verbose SQL logging, CORS allows `localhost:5173` and `localhost:3000`.
+- `dev` (default) — verbose SQL logging, CORS allows `localhost:5173` and `localhost:3000`. Also used by CI (GitHub Actions, Jenkins) to run tests against a disposable MySQL container.
 - `prod` — configure via `application-prod.properties`; CORS and DB sourced from env vars.
-- `test` — `application-test.properties`.

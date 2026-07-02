@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKERHUB_REPO = 'liokockhock2003/ifoto-backend-sc'
+        // VM_HOST comes from Manage Jenkins -> System -> Global properties -> Environment variables
+    }
+
     stages {
 
         stage('Build') {
@@ -32,13 +37,52 @@ pipeline {
 
         stage('Lint') {
             steps {
-                echo 'SOFTCON-3 Lint stage — Checkstyle coming in A5'
+                sh './mvnw checkstyle:check -B'
+            }
+            post {
+                always {
+                    recordIssues(
+                        enabledForFailure: false,
+                        tools: [checkStyle(pattern: 'target/checkstyle-result.xml')]
+                    )
+                }
             }
         }
 
         stage('Test') {
             steps {
-                echo 'SOFTCON-3 Test stage — unit tests coming in A5'
+                sh '''
+                    # Start MySQL sidecar container
+                    docker run -d \
+                    --name ifoto-mysql-${BUILD_NUMBER} \
+                    --network host \
+                    -e MYSQL_ROOT_PASSWORD=root \
+                    -e MYSQL_DATABASE=ifotodb_test \
+                    -e MYSQL_USER=ifoto_admin_test \
+                    -e MYSQL_PASSWORD=ifoto_admin_test \
+                    mysql:8.0
+
+                    echo "Waiting for MySQL to be ready..."
+                    timeout 90 bash -c \
+                    'until docker exec ifoto-mysql-${BUILD_NUMBER} mysqladmin ping -h 127.0.0.1 --silent 2>/dev/null; \
+                    do echo "still waiting..."; sleep 3; done'
+                    echo "MySQL ready."
+
+                    ./mvnw test \
+                    -Dspring.profiles.active=dev \
+                    -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/ifotodb_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kuala_Lumpur" \
+                    -Dspring.datasource.username=ifoto_admin_test \
+                    -Dspring.datasource.password=ifoto_admin_test \
+                    -Djwt.secret=test-secret-key-32-chars-minimum-length-ci-only \
+                    -Djwt.expiration-ms=86400000 \
+                    -B
+                '''
+            }
+            post {
+                always {
+                    sh 'docker stop ifoto-mysql-${BUILD_NUMBER} && docker rm ifoto-mysql-${BUILD_NUMBER} || true'
+                    junit 'target/surefire-reports/**/*.xml'
+                }
             }
         }
 
@@ -99,17 +143,57 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    def commitSha = sh(
+                    env.COMMIT_SHA = sh(
                         script: 'git rev-parse --short HEAD',
                         returnStdout: true
                     ).trim()
                     sh """
                         docker build \
-                            -t ifoto-backend:latest \
-                            -t ifoto-backend:${commitSha} \
+                            -t ${DOCKERHUB_REPO}:latest \
+                            -t ${DOCKERHUB_REPO}:${env.COMMIT_SHA} \
                             .
-                        echo "Docker image built: ifoto-backend:${commitSha}"
+                        echo "Docker image built: ${DOCKERHUB_REPO}:${env.COMMIT_SHA}"
                         docker images | grep ifoto-backend
+                    """
+                }
+            }
+        }
+
+        // ── A7: Push image to Docker Hub ──────────────────────────────────
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh """
+                        echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+                        docker push ${DOCKERHUB_REPO}:latest
+                        docker push ${DOCKERHUB_REPO}:${env.COMMIT_SHA}
+                        docker logout
+                    """
+                }
+            }
+        }
+
+        // ── A5: Deploy to GCP VM ───────────────────────────────────────────
+        stage('Deploy') {
+            steps {
+                sshagent(credentials: ['gcp-vm-ssh-key']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${env.VM_HOST} '
+                            docker pull ${DOCKERHUB_REPO}:latest &&
+                            docker stop ifoto-backend-sc-prod || true &&
+                            docker rm ifoto-backend-sc-prod || true &&
+                            docker run -d \
+                                --name ifoto-backend-sc-prod \
+                                --network ifoto-prod-net \
+                                --restart unless-stopped \
+                                --env-file /opt/ifoto/.env.prod \
+                                -p 8082:8080 \
+                                ${DOCKERHUB_REPO}:latest
+                        '
                     """
                 }
             }
