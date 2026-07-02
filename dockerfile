@@ -1,7 +1,7 @@
 # Stage 1 — build with Maven
 FROM maven:3.9.9-eclipse-temurin-21 AS builder
 WORKDIR /app
-COPY pom.xml mvnw ./
+COPY pom.xml mvnw checkstyle.xml ./
 COPY .mvn .mvn
 # Copy source
 COPY src ./src
