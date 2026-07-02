@@ -109,37 +109,6 @@ pipeline {
             }
         }
 
-        // ── A3: JMeter integration ────────────────────────────────────────
-        stage('Performance Test') {
-            steps {
-                sh '''
-                    rm -rf jmeter/results
-                    mkdir -p jmeter/results/html-report
-                    /opt/apache-jmeter/bin/jmeter -n \
-                        -t  jmeter/ifoto-performance-test.jmx \
-                        -l  jmeter/results/results.jtl \
-                        -e  -o jmeter/results/html-report \
-                        -j  jmeter/results/jmeter.log \
-                        -JBASE_HOST=136.113.123.68 \
-                        -JBASE_PORT=8082
-                '''
-            }
-            post {
-                always {
-                    publishHTML([
-                        allowMissing:          true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll:               true,
-                        reportDir:             'jmeter/results/html-report',
-                        reportFiles:           'index.html',
-                        reportName:            'JMeter Performance Report'
-                    ])
-                    archiveArtifacts artifacts: 'jmeter/results/**',
-                    allowEmptyArchive: true
-                }
-            }
-        }
-
         // ── A3: Docker plugin (dind) ──────────────────────────────────────
         stage('Docker Build') {
             steps {
@@ -196,6 +165,37 @@ pipeline {
                                 ${DOCKERHUB_REPO}:latest
                         '
                     """
+                }
+            }
+        }
+
+        // ── A3: JMeter integration (runs after Deploy so it hits the live app) ──
+        stage('Performance Test') {
+            steps {
+                sh '''
+                    rm -rf jmeter/results
+                    mkdir -p jmeter/results/html-report
+                    /opt/apache-jmeter/bin/jmeter -n \
+                        -t  jmeter/ifoto-performance-test.jmx \
+                        -l  jmeter/results/results.jtl \
+                        -e  -o jmeter/results/html-report \
+                        -j  jmeter/results/jmeter.log \
+                        -JBASE_HOST=136.113.123.68 \
+                        -JBASE_PORT=8082
+                '''
+            }
+            post {
+                always {
+                    publishHTML([
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'jmeter/results/html-report',
+                        reportFiles:           'index.html',
+                        reportName:            'JMeter Performance Report'
+                    ])
+                    archiveArtifacts artifacts: 'jmeter/results/**',
+                    allowEmptyArchive: true
                 }
             }
         }
