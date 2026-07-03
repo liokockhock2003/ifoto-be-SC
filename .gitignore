@@ -35,4 +35,5 @@ build/
 # Ignore environment variables
 .env
 
+/tools
 docs

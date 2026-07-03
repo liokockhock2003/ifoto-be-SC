@@ -18,12 +18,15 @@ import com.ifoto.ifoto_backend.repository.RentalPricingRepository;
 import com.ifoto.ifoto_backend.repository.SubEquipmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -170,7 +173,9 @@ public class EquipmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<RentableEquipmentResponse> getRentableEquipment(MemberType memberType) {
+    public List<RentableEquipmentResponse> getRentableEquipment(Authentication auth) {
+        MemberType memberType = resolveMemberType(auth);
+
         // 1 query: all pricing rows for this member type, keyed by category
         Map<RentalPricingCategory, RentalPricing> pricingMap = rentalPricingRepository
                 .findByMemberType(memberType)
@@ -203,6 +208,19 @@ public class EquipmentService {
                     );
                 })
                 .toList();
+    }
+
+    private MemberType resolveMemberType(Authentication auth) {
+        Set<String> roles = auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toSet());
+        if (roles.contains("ROLE_NON_STUDENT")) {
+            return MemberType.NON_STUDENT;
+        }
+        if (roles.contains("ROLE_STUDENT")) {
+            return MemberType.STUDENT;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No membership role assigned");
     }
 
     private RentalCategory resolvePricingCategory(Long pricingCategoryId) {
