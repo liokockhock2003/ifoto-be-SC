@@ -32,5 +32,14 @@
         <module name="EqualsHashCode"/>
         <module name="SimplifyBooleanExpression"/>
         <module name="SimplifyBooleanReturn"/>
+
+        <!-- Data Clumps detector: flag methods carrying a group of parameters that
+             travel together. Threshold lowered to 3 (default is 7) to surface the
+             search/role/page/size quartet. Scoped to METHOD_DEF so DTO record
+             constructors (already parameter objects) are not reported. -->
+        <module name="ParameterNumber">
+            <property name="max" value="3"/>
+            <property name="tokens" value="METHOD_DEF"/>
+        </module>
     </module>
 </module>
