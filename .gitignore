@@ -34,3 +34,5 @@ build/
 
 # Ignore environment variables
 .env
+
+docs

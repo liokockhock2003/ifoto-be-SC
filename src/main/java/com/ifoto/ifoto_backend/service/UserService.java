@@ -1,6 +1,7 @@
 package com.ifoto.ifoto_backend.service;
 
 import com.ifoto.ifoto_backend.dto.UserDTO.UserListItemResponse;
+import com.ifoto.ifoto_backend.dto.UserDTO.UserSearchCriteria;
 import com.ifoto.ifoto_backend.dto.UserDTO.UserUpdateResponse;
 import com.ifoto.ifoto_backend.model.Role;
 import com.ifoto.ifoto_backend.model.User;
@@ -9,7 +10,6 @@ import com.ifoto.ifoto_backend.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -104,17 +104,9 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public Page<UserListItemResponse> listUsers(String search, String role, int page, int size) {
-        if (page < 0) {
-            throw new IllegalArgumentException("Page must be >= 0");
-        }
-        if (size < 1 || size > 100) {
-            throw new IllegalArgumentException("Size must be between 1 and 100");
-        }
-
-        Pageable pageable = PageRequest.of(page, size);
-        String normalizedSearch = search == null ? "" : search.trim();
-        String normalizedRole = normalizeRoleFilter(role);
+    public Page<UserListItemResponse> listUsers(UserSearchCriteria criteria, Pageable pageable) {
+        String normalizedSearch = criteria.search() == null ? "" : criteria.search().trim();
+        String normalizedRole = normalizeRoleFilter(criteria.role());
 
         return userRepository.searchUsers(normalizedSearch, normalizedRole, pageable)
                 .map(user -> new UserListItemResponse(
