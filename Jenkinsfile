@@ -175,6 +175,12 @@ pipeline {
                 sh '''
                     rm -rf jmeter/results
                     mkdir -p jmeter/results/html-report
+
+                    echo "Waiting for iFoto backend to be ready on :8082 ..."
+                    timeout 120 bash -c 'until curl -sf http://localhost:8082/ >/dev/null 2>&1; do \
+                        echo "app not ready yet, retrying..."; sleep 3; done'
+                    echo "Backend is up — starting JMeter."
+
                     /opt/apache-jmeter/bin/jmeter -n \
                         -t  jmeter/ifoto-performance-test.jmx \
                         -l  jmeter/results/results.jtl \
