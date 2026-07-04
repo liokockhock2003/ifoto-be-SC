@@ -184,6 +184,20 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- PMD CPD (Copy-Paste Detector): duplicate-code check -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>3.21.2</version>
+                <configuration>
+                    <minimumTokens>100</minimumTokens>
+                    <format>xml</format>
+                    <linkXRef>false</linkXRef>
+                    <ignoreIdentifiers>true</ignoreIdentifiers>
+                    <ignoreLiterals>true</ignoreLiterals>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
