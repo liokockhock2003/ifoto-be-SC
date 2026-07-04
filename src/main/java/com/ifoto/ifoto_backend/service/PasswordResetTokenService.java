@@ -4,6 +4,7 @@ import com.ifoto.ifoto_backend.model.PasswordResetToken;
 import com.ifoto.ifoto_backend.model.User;
 import com.ifoto.ifoto_backend.repository.PasswordResetTokenRepository;
 import com.ifoto.ifoto_backend.repository.UserRepository;
+import com.ifoto.ifoto_backend.util.TokenUtils;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,19 +37,20 @@ public class PasswordResetTokenService {
         }
 
         userRepository.findByEmailAndIsActiveTrue(email.trim()).ifPresent(user -> {
-            passwordResetTokenRepository.markAllUnusedAsUsedByUserId(user.getId(), Instant.now());
+            Instant now = Instant.now();
+            passwordResetTokenRepository.markAllUnusedAsUsedByUserId(user.getId(), now);
 
-            String token = TokenFactory.newToken();
+            String token = TokenUtils.newToken();
             PasswordResetToken passwordResetToken = PasswordResetToken.builder()
                     .user(user)
                     .token(token)
-                    .expiresAt(TokenFactory.expiresAt(tokenExpirationMs))
+                    .expiresAt(TokenUtils.expiresAt(now, tokenExpirationMs))
                     .used(false)
                     .build();
 
             passwordResetTokenRepository.save(passwordResetToken);
             try {
-                mailService.sendPasswordResetEmail(user.getEmail(), TokenFactory.buildLink(resetUrlBase, token));
+                mailService.sendPasswordResetEmail(user.getEmail(), TokenUtils.buildLink(resetUrlBase, token));
             } catch (MailException ex) {
                 // Keep forgot-password responses uniform while preserving operational
                 // visibility.

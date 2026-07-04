@@ -6,6 +6,7 @@ import com.ifoto.ifoto_backend.model.EmailVerificationToken;
 import com.ifoto.ifoto_backend.model.User;
 import com.ifoto.ifoto_backend.repository.EmailVerificationTokenRepository;
 import com.ifoto.ifoto_backend.repository.UserRepository;
+import com.ifoto.ifoto_backend.util.TokenUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,20 +34,21 @@ public class EmailVerificationTokenService {
     @Transactional
     public void sendVerificationEmail(User user) {
         // Invalidate any previous unused tokens for this user
-        emailVerificationTokenRepository.markAllUnusedAsUsedByUserId(user.getId(), Instant.now());
+        Instant now = Instant.now();
+        emailVerificationTokenRepository.markAllUnusedAsUsedByUserId(user.getId(), now);
 
-        String token = TokenFactory.newToken();
+        String token = TokenUtils.newToken();
         EmailVerificationToken verificationToken = EmailVerificationToken.builder()
                 .user(user)
                 .token(token)
-                .expiresAt(TokenFactory.expiresAt(tokenExpirationMs))
+                .expiresAt(TokenUtils.expiresAt(now, tokenExpirationMs))
                 .used(false)
                 .build();
 
         emailVerificationTokenRepository.save(verificationToken);
 
         try {
-            mailService.sendVerificationEmail(user.getEmail(), TokenFactory.buildLink(verifyUrlBase, token));
+            mailService.sendVerificationEmail(user.getEmail(), TokenUtils.buildLink(verifyUrlBase, token));
         } catch (MailException ex) {
             log.error("Verification email delivery failed for userId={} email={}", user.getId(), user.getEmail(), ex);
         }

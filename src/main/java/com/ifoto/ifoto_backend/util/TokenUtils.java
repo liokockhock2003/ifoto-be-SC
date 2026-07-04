@@ -1,21 +1,21 @@
-package com.ifoto.ifoto_backend.service;
+package com.ifoto.ifoto_backend.util;
 
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
 import java.util.UUID;
 
-public final class TokenFactory {
+public final class TokenUtils {
 
-    private TokenFactory() {
+    private TokenUtils() {
     }
 
     public static String newToken() {
         return UUID.randomUUID().toString();
     }
 
-    public static Instant expiresAt(long ttlMillis) {
-        return Instant.now().plusMillis(ttlMillis);
+    public static Instant expiresAt(Instant startTime, long ttlMillis) {
+        return startTime.plusMillis(ttlMillis);
     }
 
     public static String buildLink(String baseUrl, String token) {
