@@ -12,10 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Service
 @Slf4j
@@ -37,18 +35,18 @@ public class EmailVerificationTokenService {
         // Invalidate any previous unused tokens for this user
         emailVerificationTokenRepository.markAllUnusedAsUsedByUserId(user.getId(), Instant.now());
 
-        String token = UUID.randomUUID().toString();
+        String token = TokenFactory.newToken();
         EmailVerificationToken verificationToken = EmailVerificationToken.builder()
                 .user(user)
                 .token(token)
-                .expiresAt(Instant.now().plusMillis(tokenExpirationMs))
+                .expiresAt(TokenFactory.expiresAt(tokenExpirationMs))
                 .used(false)
                 .build();
 
         emailVerificationTokenRepository.save(verificationToken);
 
         try {
-            mailService.sendVerificationEmail(user.getEmail(), buildVerificationLink(token));
+            mailService.sendVerificationEmail(user.getEmail(), TokenFactory.buildLink(verifyUrlBase, token));
         } catch (MailException ex) {
             log.error("Verification email delivery failed for userId={} email={}", user.getId(), user.getEmail(), ex);
         }
@@ -77,14 +75,5 @@ public class EmailVerificationTokenService {
         verificationToken.setUsed(true);
         verificationToken.setUsedAt(Instant.now());
         emailVerificationTokenRepository.save(verificationToken);
-    }
-
-    private String buildVerificationLink(String token) {
-        return UriComponentsBuilder
-                .fromUriString(verifyUrlBase)
-                .queryParam("token", token)
-                .build()
-                .encode()
-                .toUriString();
     }
 }

@@ -10,10 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Service
 @Slf4j
@@ -40,17 +38,17 @@ public class PasswordResetTokenService {
         userRepository.findByEmailAndIsActiveTrue(email.trim()).ifPresent(user -> {
             passwordResetTokenRepository.markAllUnusedAsUsedByUserId(user.getId(), Instant.now());
 
-            String token = UUID.randomUUID().toString();
+            String token = TokenFactory.newToken();
             PasswordResetToken passwordResetToken = PasswordResetToken.builder()
                     .user(user)
                     .token(token)
-                    .expiresAt(Instant.now().plusMillis(tokenExpirationMs))
+                    .expiresAt(TokenFactory.expiresAt(tokenExpirationMs))
                     .used(false)
                     .build();
 
             passwordResetTokenRepository.save(passwordResetToken);
             try {
-                mailService.sendPasswordResetEmail(user.getEmail(), buildResetLink(token));
+                mailService.sendPasswordResetEmail(user.getEmail(), TokenFactory.buildLink(resetUrlBase, token));
             } catch (MailException ex) {
                 // Keep forgot-password responses uniform while preserving operational
                 // visibility.
@@ -85,14 +83,5 @@ public class PasswordResetTokenService {
 
         // Invalidate any other still-usable reset tokens for this user.
         passwordResetTokenRepository.markAllUnusedAsUsedByUserId(user.getId(), Instant.now());
-    }
-
-    private String buildResetLink(String token) {
-        return UriComponentsBuilder
-                .fromUriString(resetUrlBase)
-                .queryParam("token", token)
-                .build()
-                .encode()
-                .toUriString();
     }
 }
