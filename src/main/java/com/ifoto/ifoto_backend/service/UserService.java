@@ -119,13 +119,6 @@ public class UserService {
                         user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toSet())));
     }
 
-    @Transactional(readOnly = true)
-    public Set<String> getRolesForUser(String username) {
-        return getByUsername(username).getRoles().stream()
-                .map(Role::getName)
-                .collect(java.util.stream.Collectors.toSet());
-    }
-
     private String normalizeRoleFilter(String role) {
         if (role == null) {
             return "";
