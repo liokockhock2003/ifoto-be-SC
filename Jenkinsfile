@@ -94,7 +94,7 @@ pipeline {
                         ./mvnw sonar:sonar \
                             -Dsonar.projectKey=ifoto-backend \
                             -Dsonar.projectName="iFoto Backend" \
-                            -Dsonar.host.url=http://136.113.123.68:9000 \
+                            -Dsonar.host.url=http://localhost:9000 \
                             -B
                     '''
                 }
