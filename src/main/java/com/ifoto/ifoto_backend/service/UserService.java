@@ -1,6 +1,7 @@
 package com.ifoto.ifoto_backend.service;
 
 import com.ifoto.ifoto_backend.dto.UserDTO.UserListItemResponse;
+import com.ifoto.ifoto_backend.dto.UserDTO.UserSearchCriteria;
 import com.ifoto.ifoto_backend.dto.UserDTO.UserUpdateResponse;
 import com.ifoto.ifoto_backend.model.Role;
 import com.ifoto.ifoto_backend.model.User;
@@ -9,7 +10,6 @@ import com.ifoto.ifoto_backend.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -21,6 +21,8 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+
+import static java.util.stream.Collectors.toSet;
 
 @Service
 @RequiredArgsConstructor
@@ -76,7 +78,7 @@ public class UserService {
     public Set<String> getRoleNamesByUsername(String username) {
         return getByUsername(username).getRoles().stream()
                 .map(Role::getName)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(toSet());
     }
 
     @Transactional(readOnly = true)
@@ -104,17 +106,9 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public Page<UserListItemResponse> listUsers(String search, String role, int page, int size) {
-        if (page < 0) {
-            throw new IllegalArgumentException("Page must be >= 0");
-        }
-        if (size < 1 || size > 100) {
-            throw new IllegalArgumentException("Size must be between 1 and 100");
-        }
-
-        Pageable pageable = PageRequest.of(page, size);
-        String normalizedSearch = search == null ? "" : search.trim();
-        String normalizedRole = normalizeRoleFilter(role);
+    public Page<UserListItemResponse> listUsers(UserSearchCriteria criteria, Pageable pageable) {
+        String normalizedSearch = criteria.search() == null ? "" : criteria.search().trim();
+        String normalizedRole = normalizeRoleFilter(criteria.role());
 
         return userRepository.searchUsers(normalizedSearch, normalizedRole, pageable)
                 .map(user -> new UserListItemResponse(
@@ -124,14 +118,7 @@ public class UserService {
                         user.getFullName(),
                         user.isActive(),
                         user.isLocked(),
-                        user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toSet())));
-    }
-
-    @Transactional(readOnly = true)
-    public Set<String> getRolesForUser(String username) {
-        return getByUsername(username).getRoles().stream()
-                .map(Role::getName)
-                .collect(java.util.stream.Collectors.toSet());
+                        user.getRoles().stream().map(Role::getName).collect(toSet())));
     }
 
     private String normalizeRoleFilter(String role) {
@@ -144,12 +131,11 @@ public class UserService {
             return "";
         }
 
-        normalized = normalized.toUpperCase(Locale.ROOT);
-        if (!normalized.startsWith("ROLE_")) {
-            normalized = "ROLE_" + normalized;
-        }
+        return withRolePrefix(normalized.toUpperCase(Locale.ROOT));
+    }
 
-        return normalized;
+    private String withRolePrefix(String upperCaseName) {
+        return upperCaseName.startsWith("ROLE_") ? upperCaseName : "ROLE_" + upperCaseName;
     }
 
     @Transactional
@@ -210,7 +196,7 @@ public class UserService {
                 user.getId(),
                 user.getUsername(),
                 user.getFullName(),
-                user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toSet()),
+                user.getRoles().stream().map(Role::getName).collect(toSet()),
                 user.isLocked());
 
         userRepository.delete(user);
@@ -227,18 +213,13 @@ public class UserService {
             throw new IllegalArgumentException("Role name must not be blank");
         }
 
-        String normalized = roleName.trim().toUpperCase(Locale.ROOT);
-        if (!normalized.startsWith("ROLE_")) {
-            normalized = "ROLE_" + normalized;
-        }
-
-        return normalized;
+        return withRolePrefix(roleName.trim().toUpperCase(Locale.ROOT));
     }
 
     private Set<Role> applyRoleConstraints(Set<Role> resolvedRoles) {
         Set<String> names = resolvedRoles.stream()
                 .map(Role::getName)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(toSet());
 
         // Rule 1: ADMIN, HIGH_COMMITTEE, EQUIPMENT_COMMITTEE always imply STUDENT
         boolean needsStudent = names.contains("ROLE_ADMIN")
@@ -250,7 +231,7 @@ public class UserService {
                     .orElseThrow(() -> new IllegalStateException("Role ROLE_STUDENT not found in database"));
             resolvedRoles = new HashSet<>(resolvedRoles);
             resolvedRoles.add(clubMember);
-            names = resolvedRoles.stream().map(Role::getName).collect(java.util.stream.Collectors.toSet());
+            names = resolvedRoles.stream().map(Role::getName).collect(toSet());
         }
 
         // Rule 2: STUDENT and GUEST are mutually exclusive

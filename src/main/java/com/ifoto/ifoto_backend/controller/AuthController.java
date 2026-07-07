@@ -96,14 +96,7 @@ public class AuthController {
         cookieUtil.setRefreshTokenCookie(response, refreshToken, jwtUtil.getRefreshExpirationMs());
         Set<String> roles = userService.getRoleNamesByUsername(request.username());
 
-        return ResponseEntity.ok(new LoginResponse(
-                accessToken,
-                jwtUtil.getExpirationMs(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getFullName(),
-                roles,
-                user.getProfilePictureUrl()));
+        return ResponseEntity.ok(buildLoginResponse(accessToken, user, roles));
     }
 
     @PostMapping("/auth/refresh")
@@ -125,14 +118,18 @@ public class AuthController {
         Set<String> roles = userService.getRoleNamesByUsername(username);
         User user = userService.getByUsername(username);
 
-        return ResponseEntity.ok(new LoginResponse(
-                newAccessToken,
+        return ResponseEntity.ok(buildLoginResponse(newAccessToken, user, roles));
+    }
+
+    private LoginResponse buildLoginResponse(String accessToken, User user, Set<String> roles) {
+        return new LoginResponse(
+                accessToken,
                 jwtUtil.getExpirationMs(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
                 roles,
-                user.getProfilePictureUrl()));
+                user.getProfilePictureUrl());
     }
 
     @PostMapping("/auth/logout")
